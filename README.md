@@ -10,6 +10,11 @@ This is a sanitized extract of the method I use on a production system. The
 domain here is generic — a slot-resolution engine — and contains none of that
 product's logic. The method is the point, not the example.
 
+**How it was built.** I don't hand-write code. This repository, like the system
+it comes from, was built by directing Claude Code under the method described
+here. My part is the contract, the refutation, the graduation rules and the
+decision about what ships.
+
 ```bash
 npm test         # 20 tests across 9 contract clauses (incl. a seeded randomized invariant)
 npm run trace    # every clause has a test; every test and mutant names a real clause
@@ -32,12 +37,13 @@ a HIGH defect in this very repository and how it was closed) → `mutation/mutan
 Over six months on a production LLM system I documented and classified 78
 conversational defects by root cause.
 
-**67% traced to deterministic code. 19% to model decisions.** The remaining
-14% were integration and infrastructure (provider errors, timeouts, data that
-arrived in the wrong shape).
+**65% traced to deterministic code. 19% to model decisions.** Of the rest, 10%
+were neither — a product decision, or a path that did not exist yet — and 5%
+could not be determined from the evidence.
 
 I had assumed the opposite. The model was the part I did not control, so it was
-the part I instrumented; meanwhile the majority of user-visible failures were
+the part I instrumented; meanwhile most of the failures that showed up in
+conversations were
 coming from ordinary logic bugs in the code around it — availability
 calculations, validation, state handling.
 
@@ -149,15 +155,66 @@ shipping.
 
 ---
 
+## How the method has evolved
+
+This extract shows the core. In daily use on the source system the method now
+runs as follows:
+
+- **Understanding to the model, determinism to anything that can do harm.** The
+  model interprets intent; code decides writes, confirmations, identity and
+  feasibility. When the model gets something wrong, the fix is the prompt, the
+  schema or the state, never a list of words to classify input.
+- **Separate roles.** A constructor builds against the contract; a blind refuter
+  sees only the contract and the running system; impact, code quality and
+  security each get their own read-only reviewer. Decisions and signatures are
+  recorded in the delivery artifacts, not in anyone's memory.
+- **The model that builds never refutes.** Construction and blind review run on
+  different models, so the reviewer does not share the builder's blind spots.
+- **Every order is the first message of a fresh session**, with its possible
+  verdicts declared up front, so no run ends in "it depends".
+- **Contracts are written against the real shapes in the code**, read first by
+  an analyst with file and line, not against what the code is assumed to look
+  like.
+- **Regression is a deterministic replay**: recorded model responses, requests
+  compared byte for byte. Live runs measure understanding; they never block a
+  release on model variance.
+- **Refutation runs in rounds until a round finds nothing material.** Each round
+  starts from the corrected version; the same class of failure appearing twice
+  triggers a design review instead of one more rule.
+- **A growing checklist of mistakes already seen.** Every order is audited
+  against it before it runs, so the same mistake is not paid for twice.
+- **Anything that touches the outside world** (payments, messaging providers,
+  DNS, banking) is declared as an external action and signed by me first.
+- **I am the final judge.** No corpus or threshold proves the product works;
+  every delivery reaches me in a form I can try myself, with a trace.
+
+## Applied to a client
+
+I used the same discipline with a non-technical client whose software
+operations I ran with Claude agents. The contract there was every message I
+sent:
+
+- each line traced to a source, in a verification table, before sending;
+- any state that can change (a ticket status, a check result) re-read less than
+  30 minutes before sending;
+- a blind review of the final text by a session that did not write it;
+- one action per request, with the exact clicks and what happens next, in
+  plain language.
+
+The reason is the same as in the code: the author of a message is the worst
+reviewer of it.
+
+---
+
 ## What this is not
 
 Not a framework, not a library, not something to install. It is a small, honest
-demonstration of a method, with every claim in it runnable.
+demonstration of a method; every claim about the example is runnable.
 
 The production system it comes from adds things that do not sanitize well: a
-permanent adversarial corpus built from reconstructed field transcripts, a
-nine-step deploy protocol, per-tenant feature-flag rollout. Happy to walk
-through any of it.
+permanent adversarial corpus of conversation scenarios that gates every
+conversational release, a nine-step deploy protocol, and feature-flagged
+rollout. Happy to walk through any of it.
 
 ---
 
