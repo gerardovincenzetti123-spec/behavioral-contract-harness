@@ -1,6 +1,6 @@
 # Behavioral contract — slot resolution
 
-Written and reviewed **before** the implementation. Every clause maps to at
+Written and reviewed **before** the implementation, and amended through refutation rounds (see `refutation/rounds/`). Every clause maps to at
 least one test in `tests/`, and every test names the clause it enforces. A
 clause with no test is not part of the contract; a test with no clause is
 scope creep.
@@ -23,9 +23,13 @@ When multiple slots satisfy the request, the one with the smallest start time
 is returned. Ties across resources may resolve to any tied resource, but never
 to a later start.
 
-**C3 — Turnaround is not optional.**
-A slot may not begin inside a reservation's trailing turnaround buffer. The
-buffer is part of the reservation for collision purposes.
+**C3 — Turnaround is not optional, in either direction.**
+A slot may not begin inside a reservation's trailing turnaround buffer, and a
+reservation may not begin inside the proposed slot's trailing buffer. The
+buffer is part of every reservation — existing or proposed — for collision
+purposes. *(Amended in round 2: the original clause covered only existing
+reservations, so a slot could be returned that left no turnaround before the
+next booking.)*
 
 **C4 — Boundaries are half-open.**
 Intervals are `[start, end)`. A slot ending exactly when another begins does
@@ -49,6 +53,13 @@ nothing", because the two produce different responses to the user.
 Non-positive or non-integer durations return `INVALID_DURATION`. An empty or
 inverted window returns `INVALID_WINDOW`. Neither is reported as
 `NO_AVAILABILITY`.
+
+**C9 — Malformed resources fail closed, before search.**
+A resource with a missing or non-numeric `turnaroundMinutes`, or with
+non-interval `openHours`/`booked`, returns `INVALID_RESOURCE`. So does a
+`resourceIds` filter that is not an array. The engine never searches over
+data it cannot trust: a missing turnaround must not silently erase the
+reservations it was meant to pad. *(Added in round 2.)*
 
 ## Out of scope
 
