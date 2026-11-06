@@ -54,4 +54,25 @@ export const mutants = [
     find: 'if (best === null || proposed.start < best.start) {',
     replace: 'if (best === null) {',
   },
+  {
+    id: 'M7',
+    clause: 'C3',
+    describes: 'Proposed slot carries no trailing buffer; the next reservation may start inside it.',
+    find: 'const proposedBlocked = { start, end: proposed.end + resource.turnaroundMinutes };',
+    replace: 'const proposedBlocked = { start, end: proposed.end };',
+  },
+  {
+    id: 'M8',
+    clause: 'C9',
+    describes: 'Missing turnaround is tolerated; NaN arithmetic erases every reservation on the resource.',
+    find: 'Number.isFinite(r.turnaroundMinutes) && r.turnaroundMinutes >= 0',
+    replace: 'true',
+  },
+  {
+    id: 'M9',
+    clause: 'C9',
+    describes: 'A string resourceIds filter is accepted and matches by substring.',
+    find: "if (request.resourceIds !== undefined && !Array.isArray(request.resourceIds)) {",
+    replace: "if (false) {",
+  },
 ];

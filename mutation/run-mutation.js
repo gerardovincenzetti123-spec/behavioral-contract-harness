@@ -42,6 +42,11 @@ if (!suitePasses()) {
 }
 console.log('Baseline green.\n');
 
+// Restore the source no matter how this process ends: a mutant left on disk
+// would turn the next `npm test` into a lie.
+process.on('exit', () => writeFileSync(target, original));
+process.on('SIGINT', () => process.exit(130));
+
 let survivors = 0;
 
 for (const mutant of mutants) {
@@ -51,9 +56,13 @@ for (const mutant of mutants) {
     continue;
   }
 
-  writeFileSync(target, original.replace(mutant.find, mutant.replace));
-  const survived = suitePasses();
-  writeFileSync(target, original);
+  let survived;
+  try {
+    writeFileSync(target, original.replace(mutant.find, mutant.replace));
+    survived = suitePasses();
+  } finally {
+    writeFileSync(target, original);
+  }
 
   if (survived) {
     survivors += 1;

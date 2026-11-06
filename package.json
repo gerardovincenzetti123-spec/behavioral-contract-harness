@@ -1,12 +1,13 @@
 {
   "name": "behavioral-contract-harness",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A worked example of an evaluation harness for LLM-backed systems: executable behavioral contracts, blind refutation, and mutation testing.",
   "type": "module",
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
+    "trace": "node scripts/trace.js",
     "mutation": "node mutation/run-mutation.js",
-    "verify": "npm test && npm run mutation"
+    "verify": "npm test && npm run trace && npm run mutation"
   },
   "license": "MIT",
   "engines": {

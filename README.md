@@ -1,5 +1,7 @@
 # Behavioral contract harness
 
+[![verify](https://github.com/gerardovincenzetti123-spec/behavioral-contract-harness/actions/workflows/verify.yml/badge.svg)](https://github.com/gerardovincenzetti123-spec/behavioral-contract-harness/actions/workflows/verify.yml)
+
 A worked, runnable example of how I gate quality in LLM-backed systems:
 **executable behavioral contracts**, **blind refutation**, and **mutation
 testing**.
@@ -9,10 +11,18 @@ domain here is generic — a slot-resolution engine — and contains none of tha
 product's logic. The method is the point, not the example.
 
 ```bash
-npm test        # 14 tests across 8 contract clauses
-npm run mutation # 6 named defects, each must be caught
-npm run verify  # both
+npm test         # 20 tests across 9 contract clauses (incl. a seeded randomized invariant)
+npm run trace    # every clause has a test; every test and mutant names a real clause
+npm run mutation # 9 named defects, each must be caught
+npm run verify   # all three — what CI runs
 ```
+
+No dependencies. Node 20 or newer.
+
+**Five-minute read:** `contracts/slot-engine.contract.md` (what the engine
+promises) → `refutation/rounds/2026-11-06-round-2.md` (a real round that found
+a HIGH defect in this very repository and how it was closed) → `mutation/mutants.js`
+(the defects the suite is proven to catch).
 
 ---
 
@@ -21,7 +31,9 @@ npm run verify  # both
 Over six months on a production LLM system I documented and classified 78
 conversational defects by root cause.
 
-**67% traced to deterministic code. 19% to model decisions.**
+**67% traced to deterministic code. 19% to model decisions.** The remaining
+14% were integration and infrastructure (provider errors, timeouts, data that
+arrived in the wrong shape).
 
 I had assumed the opposite. The model was the part I did not control, so it was
 the part I instrumented; meanwhile the majority of user-visible failures were
@@ -76,6 +88,13 @@ Specs get refuted on paper first, before code exists — the cheapest round by a
 wide margin. Four consecutive specs on the source system surfaced blocking
 flaws at that stage.
 
+It works on this repository too. Round 2 (`refutation/rounds/`) was run blind
+against the published v1 and found that a resource with a missing turnaround
+field made every reservation on it vanish from the collision check — the
+engine handed out a taken slot with full confidence. That became clause C9,
+a test, and mutant M8. Rounds are logged because a regression has to be
+traceable to the round that should have caught it.
+
 ### 3. Mutation testing
 
 `mutation/mutants.js` · `mutation/run-mutation.js`
@@ -92,13 +111,22 @@ in real scheduling logic and survives review:
 | M4 | C7 | Empty resource set collapses into generic no-availability |
 | M5 | C8 | Fractional durations accepted |
 | M6 | C2 | First resource wins instead of earliest start |
+| M7 | C3 | Proposed slot carries no trailing buffer before the next reservation |
+| M8 | C9 | Missing turnaround tolerated; `NaN` arithmetic erases every reservation |
+| M9 | C9 | String `resourceIds` accepted and matched by substring |
 
 A surviving mutant means the clause is not really enforced — the test passes
 for a reason other than the behaviour it claims to check. `npm run mutation`
 exits non-zero when that happens, because coverage that does not detect a
 defect is not coverage.
 
-M3 is drawn from a real refutation finding; see `refutation/example-round.md`.
+M3 is drawn from a refutation finding on the source system (`refutation/example-round.md`);
+M7–M9 are drawn from round 2 on this repository (`refutation/rounds/`).
+
+`npm run trace` closes the loop from the other side: it reads the clause ids
+out of the contract and fails if any clause has no test, or any test or
+mutant names a clause that does not exist. The traceability rule above is a
+check, not a sentence.
 
 ---
 
@@ -139,7 +167,9 @@ contracts/   the behavioral contract — read this first
 src/         the deterministic engine under test
 tests/       one file, tests named for the clauses they enforce
 mutation/    named defects + the runner that proves they are caught
-refutation/  protocol, prompt, and a worked round with triage
+refutation/  protocol, prompt, an illustrative round, and the real rounds/ log
+scripts/     trace.js — contract ↔ tests ↔ mutants traceability check
+.github/     CI: npm run verify on Node 20 and 22
 ```
 
 MIT licensed.

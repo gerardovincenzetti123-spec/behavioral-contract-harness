@@ -35,9 +35,31 @@
 export const REJECTION = {
   INVALID_DURATION: 'INVALID_DURATION',
   INVALID_WINDOW: 'INVALID_WINDOW',
+  INVALID_RESOURCE: 'INVALID_RESOURCE',
   NO_RESOURCE: 'NO_RESOURCE',
   NO_AVAILABILITY: 'NO_AVAILABILITY',
 };
+
+function isInterval(x) {
+  return x && Number.isFinite(x.start) && Number.isFinite(x.end);
+}
+
+/**
+ * A resource is well-formed when its intervals are numeric and its turnaround
+ * is a non-negative finite number. A missing turnaround is NOT treated as 0:
+ * `b.end + undefined` is NaN, NaN never overlaps anything, and every
+ * reservation on that resource silently disappears from the collision check.
+ * That failure mode hands a user a time that is already taken (C9).
+ */
+function isWellFormedResource(r) {
+  return (
+    r &&
+    typeof r.id === 'string' &&
+    Array.isArray(r.openHours) && r.openHours.every(isInterval) &&
+    Array.isArray(r.booked) && r.booked.every(isInterval) &&
+    Number.isFinite(r.turnaroundMinutes) && r.turnaroundMinutes >= 0
+  );
+}
 
 function overlaps(a, b) {
   return a.start < b.end && b.start < a.end;
@@ -51,7 +73,8 @@ function normalizeConstraints(request) {
 
 /**
  * Blocked intervals for a resource: every reservation extended by the
- * turnaround buffer on its trailing edge.
+ * turnaround buffer on its trailing edge. The proposed slot is extended the
+ * same way before the collision check, so the buffer is symmetric (C3).
  */
 function blockedIntervals(resource) {
   return resource.booked.map((b) => ({
@@ -81,6 +104,14 @@ export function resolveSlot(resources, request) {
     return { ok: false, reason: REJECTION.INVALID_WINDOW };
   }
 
+  if (request.resourceIds !== undefined && !Array.isArray(request.resourceIds)) {
+    // A string here would match by substring and silently widen the filter.
+    return { ok: false, reason: REJECTION.INVALID_RESOURCE };
+  }
+  if (!Array.isArray(resources) || !resources.every(isWellFormedResource)) {
+    return { ok: false, reason: REJECTION.INVALID_RESOURCE };
+  }
+
   const candidates = request.resourceIds
     ? resources.filter((r) => request.resourceIds.includes(r.id))
     : resources;
@@ -100,7 +131,10 @@ export function resolveSlot(resources, request) {
 
       for (let start = windowStart; start + request.durationMinutes <= windowEnd; start += 1) {
         const proposed = { start, end: start + request.durationMinutes };
-        const collides = blocked.some((b) => overlaps(proposed, b));
+        // The proposed slot carries the same trailing buffer as any reservation
+        // (C3): once booked, the next reservation may not begin inside it.
+        const proposedBlocked = { start, end: proposed.end + resource.turnaroundMinutes };
+        const collides = blocked.some((b) => overlaps(proposedBlocked, b));
         if (collides) continue;
 
         if (best === null || proposed.start < best.start) {
