@@ -24,7 +24,7 @@ const original = readFileSync(target, 'utf8');
 
 function suitePasses() {
   try {
-    execFileSync('node', ['--test', 'tests/*.test.js'], {
+    execFileSync('node', ['--test'], { // default patterns: tests/*.test.js; a quoted glob is not expanded on Node 20
       cwd: join(here, '..'),
       stdio: 'pipe',
       shell: false,

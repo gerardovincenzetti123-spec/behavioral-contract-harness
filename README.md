@@ -17,7 +17,8 @@ npm run mutation # 9 named defects, each must be caught
 npm run verify   # all three — what CI runs
 ```
 
-No dependencies. Node 20 or newer.
+No dependencies. Node 20 or newer (CI runs 20 and 22; round 2 found the published
+scripts only worked on 22 — a quoted glob that Node 20 does not expand).
 
 **Five-minute read:** `contracts/slot-engine.contract.md` (what the engine
 promises) → `refutation/rounds/2026-11-06-round-2.md` (a real round that found
